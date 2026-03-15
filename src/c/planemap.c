@@ -18,7 +18,7 @@ typedef struct __attribute__((__packed__)) {
   uint16_t bearing_deg;
   uint16_t heading;
   char flight[8];
-  char type[4];
+  char type[16];
   char reg[8];
   int32_t alt;
   uint16_t speed;
@@ -29,6 +29,7 @@ typedef struct __attribute__((__packed__)) {
 static PlaneData s_planes[MAX_PLANES];
 static int s_num_planes = 0;
 static int s_current_radius = 15;
+static bool s_is_metric = false;
 static void draw_plane(GContext *ctx, GPoint center, uint16_t heading_deg) {
   int32_t angle = (TRIG_MAX_ANGLE * heading_deg) / 360;
   
@@ -88,7 +89,7 @@ static void radar_update_proc(Layer *layer, GContext *ctx) {
 
   // Draw current radius in corner
   static char s_radius_buf[16];
-  snprintf(s_radius_buf, sizeof(s_radius_buf), "%d nm", s_current_radius);
+  snprintf(s_radius_buf, sizeof(s_radius_buf), "%d %s", s_current_radius, s_is_metric ? "km" : "nm");
   graphics_draw_text(ctx, s_radius_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(4, 2, 40, 20), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
 
   graphics_draw_circle(ctx, center, 72);
@@ -127,14 +128,14 @@ static void detail_window_load(Window *window) {
   if(s_selected_plane_index < s_num_planes) {
     PlaneData *p = &s_planes[s_selected_plane_index];
     
-    static char s_buff[128];
+    static char s_buff[160];
     char f_safe[9] = {0}; memcpy(f_safe, p->flight, 8);
-    char t_safe[5] = {0}; memcpy(t_safe, p->type, 4);
+    char t_safe[17] = {0}; memcpy(t_safe, p->type, 16);
     char r_safe[9] = {0}; memcpy(r_safe, p->reg, 8);
 
     snprintf(s_buff, sizeof(s_buff), 
-      "Flight: %s\nType: %s\nReg: %s\nAlt: %ld ft\nSpd: %d kts",
-      f_safe, t_safe, r_safe, (long)p->alt, (int)p->speed);
+      "Flight: %s\nType: %s\nReg: %s\nAlt: %ld %s\nSpd: %d %s",
+      f_safe, t_safe, r_safe, (long)p->alt, s_is_metric ? "m" : "ft", (int)p->speed, s_is_metric ? "kmh" : "kts");
       
     text_layer_set_text(s_detail_text_layer, s_buff);
   }
@@ -163,8 +164,8 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
   char f_str[9] = {0};
   memcpy(f_str, p->flight, 8);
   
-  char t_str[5] = {0};
-  memcpy(t_str, p->type, 4);
+  char t_str[17] = {0};
+  memcpy(t_str, p->type, 16);
   
   static char s_title[32];
   snprintf(s_title, sizeof(s_title), "#%d %s", cell_index->row + 1, f_str);
@@ -213,6 +214,11 @@ static void prv_inbox_received_handler(DictionaryIterator *iter, void *context) 
     Tuple *radius_t = dict_find(iter, MESSAGE_KEY_KEY_CURRENT_RADIUS);
     if (radius_t) {
       s_current_radius = radius_t->value->int32;
+    }
+
+    Tuple *metric_t = dict_find(iter, MESSAGE_KEY_KEY_IS_METRIC);
+    if (metric_t) {
+      s_is_metric = metric_t->value->int32 == 1;
     }
 
     layer_mark_dirty(s_radar_layer);

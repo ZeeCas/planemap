@@ -1,16 +1,22 @@
 {
   "name": "planemap",
   "author": "CasCasey",
-  "version": "1.0.0",
+  "version": "1.1",
   "keywords": [
     "pebble-app"
   ],
   "private": true,
+  "dependencies": {
+    "@rebble/clay": "^1.0.8"
+  },
   "pebble": {
     "displayName": "Plane Map",
     "uuid": "3a375aaa-91b1-4dc3-8430-b87c1255843b",
     "sdkVersion": "3",
     "enableMultiJS": true,
+    "capabilities": [
+      "configurable"
+    ],
     "targetPlatforms": [
       "aplite",
       "basalt",
@@ -25,7 +31,12 @@
       "PLANES_DATA",
       "KEY_ZOOM_IN",
       "KEY_ZOOM_OUT",
-      "KEY_CURRENT_RADIUS"
+      "KEY_CURRENT_RADIUS",
+      "KEY_IS_METRIC",
+      "UNITS_METRIC",
+      "OVERRIDE_LOCATION",
+      "MANUAL_LAT",
+      "MANUAL_LON"
     ],
     "resources": {
       "media": [
@@ -39,3 +50,5 @@
     }
   }
 }
+
+
