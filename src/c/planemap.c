@@ -37,7 +37,7 @@ static int32_t s_compass_heading = 0;
 
 static void compass_handler(CompassHeadingData heading_data) {
   if (heading_data.compass_status == CompassStatusDataInvalid) return;
-  s_compass_heading = heading_data.magnetic_heading;
+  s_compass_heading = TRIG_MAX_ANGLE - heading_data.magnetic_heading;
   APP_LOG(APP_LOG_LEVEL_INFO, "Compass heading: %ld, raw: %ld", (long)s_compass_heading, (long)TRIGANGLE_TO_DEG(heading_data.magnetic_heading));
   layer_mark_dirty(s_radar_layer);
 }
@@ -99,7 +99,7 @@ static void radar_update_proc(Layer *layer, GContext *ctx) {
     if (s_rotate_map) {
       a -= s_compass_heading;
     }
-    int r = 75;
+    int r = 62;
     int tx = center.x + (sin_lookup(a) * r) / TRIG_MAX_RATIO;
     int ty = center.y - (cos_lookup(a) * r) / TRIG_MAX_RATIO;
     char *l = (i==0) ? "N" : (i==1) ? "E" : (i==2) ? "S" : "W";
@@ -111,16 +111,16 @@ static void radar_update_proc(Layer *layer, GContext *ctx) {
   snprintf(s_radius_buf, sizeof(s_radius_buf), "%d %s", s_current_radius, s_is_metric ? "km" : "nm");
   graphics_draw_text(ctx, s_radius_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(4, 2, 40, 20), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
 
-  graphics_draw_circle(ctx, center, 72);
-  graphics_draw_circle(ctx, center, 48);
-  graphics_draw_circle(ctx, center, 24);
+  graphics_draw_circle(ctx, center, 70);
+  graphics_draw_circle(ctx, center, 46);
+  graphics_draw_circle(ctx, center, 23);
   graphics_draw_line(ctx, GPoint(center.x, 0), GPoint(center.x, bounds.size.h));
   graphics_draw_line(ctx, GPoint(0, center.y), GPoint(bounds.size.w, center.y));
 
   graphics_context_set_stroke_color(ctx, GColorWhite);
   graphics_context_set_text_color(ctx, GColorWhite);
   for (int i = 0; i < s_num_planes; i++) {
-    int px_distance = (s_planes[i].distance_nm_x10 * 72) / (s_current_radius * 10);
+    int px_distance = (s_planes[i].distance_nm_x10 * 70) / (s_current_radius * 10);
     int32_t b_angle = (TRIG_MAX_ANGLE * s_planes[i].bearing_deg) / 360;
     if (s_rotate_map) {
       b_angle -= s_compass_heading;
@@ -134,7 +134,7 @@ static void radar_update_proc(Layer *layer, GContext *ctx) {
     uint16_t rotated_h_deg = s_planes[i].heading;
     if (s_rotate_map) {
       int32_t compass_deg = (s_compass_heading * 360) / TRIG_MAX_ANGLE;
-      rotated_h_deg = (s_planes[i].heading + 360 - compass_deg) % 360;
+      rotated_h_deg = ((int32_t)s_planes[i].heading - compass_deg + 360) % 360;
     }
     draw_plane(ctx, p, rotated_h_deg);
     
@@ -149,7 +149,7 @@ static void detail_window_load(Window *window) {
   GRect bounds = layer_get_bounds(window_layer);
 
   s_detail_text_layer = text_layer_create(GRect(5, 5, bounds.size.w - 10, bounds.size.h - 10));
-  text_layer_set_font(s_detail_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+  text_layer_set_font(s_detail_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
   text_layer_set_overflow_mode(s_detail_text_layer, GTextOverflowModeWordWrap);
   
   if(s_selected_plane_index < s_num_planes) {
@@ -298,12 +298,12 @@ static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
   window_stack_push(s_list_window, true);
 }
 
-static void send_zoom_message(uint32_t key) {
+static void send_zoom_message() {
   DictionaryIterator *iter;
-  app_message_outbox_begin(&iter);
-  if (!iter) return;
-  dict_write_uint8(iter, key, 1);
-  app_message_outbox_send();
+  if(app_message_outbox_begin(&iter) == APP_MSG_OK) {
+    dict_write_int32(iter, MESSAGE_KEY_KEY_CURRENT_RADIUS, s_current_radius);
+    app_message_outbox_send();
+  }
 }
 
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
@@ -313,7 +313,7 @@ static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
     s_current_radius -= 25;
   }
   layer_mark_dirty(s_radar_layer);
-  send_zoom_message(MESSAGE_KEY_KEY_ZOOM_IN);
+  send_zoom_message();
 }
 
 static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
@@ -323,7 +323,7 @@ static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
     s_current_radius += 25;
   }
   layer_mark_dirty(s_radar_layer);
-  send_zoom_message(MESSAGE_KEY_KEY_ZOOM_OUT);
+  send_zoom_message();
 }
 
 static void click_config_provider(void *context) {

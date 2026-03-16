@@ -178,20 +178,8 @@ function getPlanes() {
 
 Pebble.addEventListener('appmessage', function(e) {
   var dict = e.payload;
-  if (dict.KEY_ZOOM_IN) {
-    if (current_radius <= 50) {
-      if (current_radius > 5) current_radius -= 5;
-    } else {
-      current_radius -= 25;
-    }
-    try { localStorage.setItem('current_radius', current_radius); } catch(e) {}
-    getPlanes();
-  } else if (dict.KEY_ZOOM_OUT) {
-    if (current_radius < 50) {
-      current_radius += 5;
-    } else if (current_radius < 250) {
-      current_radius += 25;
-    }
+  if ('KEY_CURRENT_RADIUS' in dict) {
+    current_radius = dict.KEY_CURRENT_RADIUS;
     try { localStorage.setItem('current_radius', current_radius); } catch(e) {}
     getPlanes();
   } else if (dict.KEY_REQUEST_ROUTE) {
